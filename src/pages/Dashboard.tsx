@@ -1,11 +1,14 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { 
-  LayoutDashboard, 
+  CircleDollarSign, 
+  Percent, 
   TrendingUp, 
-  TrendingDown, 
-  BarChart3,
-  Percent 
+  TrendingDown,
+  BarChart,
+  Clock,
+  RefreshCw,
+  Trash
 } from "lucide-react";
 import { tradeService } from "@/services/tradeService";
 import { calculateStats } from "@/utils/tradeCalculations";
@@ -14,10 +17,37 @@ import PerformanceChart from "@/components/Dashboard/PerformanceChart";
 import RecentTradesList from "@/components/Dashboard/RecentTradesList";
 import TradeCalendar from "@/components/Dashboard/TradeCalendar";
 import { formatCurrency, formatPercentage } from "@/utils/tradeCalculations";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const Dashboard: React.FC = () => {
-  const trades = tradeService.getAllTrades();
+  const [trades, setTrades] = useState(tradeService.getAllTrades());
   const stats = calculateStats(trades);
+  const { toast } = useToast();
+  
+  // Function to refresh data
+  const refreshData = () => {
+    setTrades(tradeService.getAllTrades());
+    toast({
+      title: "Data refreshed",
+      description: "Your trading data has been refreshed.",
+    });
+  };
+
+  // Function to clear all data
+  const clearData = () => {
+    if (confirm("Are you sure you want to clear all data? This action cannot be undone.")) {
+      tradeService.clearAllTrades();
+      setTrades([]);
+      toast({
+        title: "Data cleared",
+        description: "All your trading data has been cleared.",
+      });
+    }
+  };
   
   // Generate performance data for the charts
   const performanceData = (() => {
@@ -65,49 +95,138 @@ const Dashboard: React.FC = () => {
     
     return data;
   })();
+
+  // Generate symbol performance data
+  const symbolPerformance = React.useMemo(() => {
+    const symbolData: Record<string, { trades: number, wins: number, pnl: number }> = {};
+    
+    trades.forEach(trade => {
+      if (!symbolData[trade.symbol]) {
+        symbolData[trade.symbol] = { trades: 0, wins: 0, pnl: 0 };
+      }
+      
+      symbolData[trade.symbol].trades++;
+      if (trade.pnl > 0) symbolData[trade.symbol].wins++;
+      symbolData[trade.symbol].pnl += trade.pnl;
+    });
+    
+    return Object.entries(symbolData).map(([symbol, data]) => ({
+      symbol,
+      trades: data.trades,
+      winRate: data.trades > 0 ? (data.wins / data.trades) * 100 : 0,
+      pnl: data.pnl
+    })).sort((a, b) => b.pnl - a.pnl);
+  }, [trades]);
   
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Performance Analytics</h1>
+        <div className="flex gap-2">
+          <Button variant="destructive" size="sm" className="gap-2" onClick={clearData}>
+            <Trash className="h-4 w-4" />
+            Clear Data
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={refreshData}>
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total P&L"
           value={formatCurrency(stats.netPnL)}
-          description={`From ${stats.totalTrades} trades`}
-          icon={<LayoutDashboard />}
+          description="Overall performance"
+          iconType="money"
           trend={stats.netPnL > 0 ? "up" : stats.netPnL < 0 ? "down" : "neutral"}
         />
         <StatCard
           title="Win Rate"
           value={formatPercentage(stats.winRate)}
-          description={`${stats.winningTrades} / ${stats.totalTrades} trades`}
-          icon={<Percent />}
+          description="Percentage of winning trades"
+          iconType="percent"
           trend={stats.winRate > 50 ? "up" : stats.winRate < 50 ? "down" : "neutral"}
         />
         <StatCard
           title="Average Win"
           value={formatCurrency(stats.averageWin)}
-          description={`Total profit: ${formatCurrency(stats.totalProfit)}`}
-          icon={<TrendingUp />}
+          description="Average winning trade"
+          iconType="up"
           trend="up"
         />
         <StatCard
           title="Average Loss"
           value={formatCurrency(stats.averageLoss)}
-          description={`Total loss: ${formatCurrency(stats.totalLoss)}`}
-          icon={<TrendingDown />}
+          description="Average losing trade"
+          iconType="down"
+          trend="down"
+        />
+        <StatCard
+          title="Profit Factor"
+          value={stats.profitFactor.toFixed(2)}
+          description="Gain to loss ratio"
+          iconType="chart"
+          trend={stats.profitFactor > 1 ? "up" : "down"}
+        />
+        <StatCard
+          title="Max Drawdown"
+          value={formatCurrency(stats.maxDrawdown)}
+          description="Maximum capital drawdown"
+          iconType="clock"
           trend="down"
         />
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <PerformanceChart data={performanceData} />
-        <RecentTradesList trades={trades.slice(0, 5)} />
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Performance Analysis</h2>
+          <p className="text-sm text-muted-foreground">Track your trading performance over time</p>
+        </div>
+        
+        <div>
+          <PerformanceChart data={performanceData} />
+        </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <TradeCalendar trades={trades} />
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold">Symbol Performance</h2>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Symbol</TableHead>
+                <TableHead className="text-center">Trades</TableHead>
+                <TableHead className="text-center">Win Rate</TableHead>
+                <TableHead className="text-right">P&L</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {symbolPerformance.length > 0 ? (
+                symbolPerformance.map((item) => (
+                  <TableRow key={item.symbol}>
+                    <TableCell>{item.symbol}</TableCell>
+                    <TableCell className="text-center">{item.trades}</TableCell>
+                    <TableCell className="text-center">{item.winRate.toFixed(1)}%</TableCell>
+                    <TableCell className={cn(
+                      "text-right font-mono",
+                      item.pnl > 0 ? "text-trade-profit" : item.pnl < 0 ? "text-trade-loss" : ""
+                    )}>
+                      {formatCurrency(item.pnl)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                    No trading data available
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );

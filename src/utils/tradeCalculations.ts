@@ -1,76 +1,126 @@
+export const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(amount);
+};
 
-import { Trade, TradingStats } from "../types/trade";
+export const formatPercentage = (decimal: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'percent',
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 2,
+  }).format(decimal / 100);
+};
 
-export function calculatePnL(entryPrice: number, exitPrice: number, quantity: number, direction: 'buy' | 'sell'): number {
+export interface TradeStats {
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  breakEvenTrades: number;
+  winRate: number;
+  netPnL: number;
+  totalProfit: number;
+  totalLoss: number;
+  averageWin: number;
+  averageLoss: number;
+  largestWin: number;
+  largestLoss: number;
+  profitFactor: number;
+  maxDrawdown: number;
+}
+
+// Calculate PnL for a trade
+export const calculatePnL = (entryPrice: number, exitPrice: number, quantity: number, direction: string): number => {
   if (direction === 'buy') {
     return (exitPrice - entryPrice) * quantity;
   } else {
     return (entryPrice - exitPrice) * quantity;
   }
-}
+};
 
-export function calculatePnLPercentage(entryPrice: number, exitPrice: number, direction: 'buy' | 'sell'): number {
+// Calculate PnL percentage for a trade
+export const calculatePnLPercentage = (entryPrice: number, exitPrice: number, direction: string): number => {
   if (direction === 'buy') {
     return ((exitPrice - entryPrice) / entryPrice) * 100;
   } else {
     return ((entryPrice - exitPrice) / entryPrice) * 100;
   }
-}
+};
 
-export function calculateStats(trades: Trade[]): TradingStats {
+// Calculate trading statistics from trade history
+export const calculateStats = (trades: any[]): TradeStats => {
   const closedTrades = trades.filter(trade => trade.status === 'closed');
   const totalTrades = closedTrades.length;
   
-  if (totalTrades === 0) {
-    return {
-      totalTrades: 0,
-      winningTrades: 0,
-      losingTrades: 0,
-      winRate: 0,
-      totalProfit: 0,
-      totalLoss: 0,
-      netPnL: 0,
-      profitFactor: 0,
-      averageWin: 0,
-      averageLoss: 0
-    };
-  }
+  const winningTrades = closedTrades.filter(trade => trade.pnl > 0).length;
+  const losingTrades = closedTrades.filter(trade => trade.pnl < 0).length;
+  const breakEvenTrades = closedTrades.filter(trade => trade.pnl === 0).length;
   
-  const winningTrades = closedTrades.filter(trade => trade.pnl > 0);
-  const losingTrades = closedTrades.filter(trade => trade.pnl < 0);
+  const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
   
-  const winRate = (winningTrades.length / totalTrades) * 100;
+  const netPnL = closedTrades.reduce((sum, trade) => sum + trade.pnl, 0);
   
-  const totalProfit = winningTrades.reduce((sum, trade) => sum + trade.pnl, 0);
-  const totalLoss = Math.abs(losingTrades.reduce((sum, trade) => sum + trade.pnl, 0));
-  const netPnL = totalProfit - totalLoss;
+  const profitTrades = closedTrades.filter(trade => trade.pnl > 0);
+  const lossTrades = closedTrades.filter(trade => trade.pnl < 0);
   
-  const profitFactor = totalLoss === 0 ? totalProfit : totalProfit / totalLoss;
+  const totalProfit = profitTrades.reduce((sum, trade) => sum + trade.pnl, 0);
+  const totalLoss = Math.abs(lossTrades.reduce((sum, trade) => sum + trade.pnl, 0));
   
-  const averageWin = winningTrades.length === 0 ? 0 : totalProfit / winningTrades.length;
-  const averageLoss = losingTrades.length === 0 ? 0 : totalLoss / losingTrades.length;
+  const averageWin = profitTrades.length > 0 ? totalProfit / profitTrades.length : 0;
+  const averageLoss = lossTrades.length > 0 ? totalLoss / lossTrades.length : 0;
+  
+  const largestWin = profitTrades.length > 0 
+    ? Math.max(...profitTrades.map(trade => trade.pnl)) 
+    : 0;
+    
+  const largestLoss = lossTrades.length > 0 
+    ? Math.abs(Math.min(...lossTrades.map(trade => trade.pnl))) 
+    : 0;
+    
+  // Calculate profit factor
+  const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? Infinity : 0;
+  
+  // Calculate max drawdown
+  let maxDrawdown = 0;
+  let peak = 0;
+  let currentDrawdown = 0;
+  
+  // Sort trades by date
+  const sortedTrades = [...closedTrades].sort((a, b) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+  
+  let runningPnL = 0;
+  
+  sortedTrades.forEach(trade => {
+    runningPnL += trade.pnl;
+    
+    if (runningPnL > peak) {
+      peak = runningPnL;
+      currentDrawdown = 0;
+    } else {
+      currentDrawdown = peak - runningPnL;
+      if (currentDrawdown > maxDrawdown) {
+        maxDrawdown = currentDrawdown;
+      }
+    }
+  });
   
   return {
     totalTrades,
-    winningTrades: winningTrades.length,
-    losingTrades: losingTrades.length,
+    winningTrades,
+    losingTrades,
+    breakEvenTrades,
     winRate,
+    netPnL,
     totalProfit,
     totalLoss,
-    netPnL,
-    profitFactor,
     averageWin,
-    averageLoss
+    averageLoss,
+    largestWin,
+    largestLoss,
+    profitFactor,
+    maxDrawdown
   };
-}
-
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-}
-
-export function formatPercentage(percentage: number): string {
-  return `${percentage.toFixed(2)}%`;
-}
+};

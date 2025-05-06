@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 
 interface PerformanceData {
   date: string;
@@ -27,83 +28,96 @@ interface PerformanceChartProps {
 }
 
 const PerformanceChart: React.FC<PerformanceChartProps> = ({ data }) => {
+  const chartConfig = {
+    profit: { color: "#33cc66" },
+    loss: { color: "#ff3366" },
+    cumulative: { color: "#0ea5e9" },
+  };
+
   return (
-    <Card className="col-span-3">
-      <CardHeader>
-        <CardTitle>Performance Overview</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="bar">
-          <div className="flex justify-between items-center mb-6">
-            <TabsList>
-              <TabsTrigger value="bar">Profit/Loss</TabsTrigger>
-              <TabsTrigger value="line">Cumulative P/L</TabsTrigger>
-            </TabsList>
-          </div>
-          
-          <TabsContent value="bar" className="h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
+    <Tabs defaultValue="bar">
+      <div className="flex justify-end pb-4">
+        <TabsList>
+          <TabsTrigger value="bar">Daily</TabsTrigger>
+          <TabsTrigger value="weekly">Weekly</TabsTrigger>
+          <TabsTrigger value="monthly">Monthly</TabsTrigger>
+        </TabsList>
+      </div>
+      
+      <TabsContent value="bar">
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">P&L by Period</h3>
+            <ChartContainer className="h-[300px]" config={chartConfig}>
               <BarChart
                 data={data}
-                margin={{
-                  top: 5,
-                  right: 30,
-                  left: 20,
-                  bottom: 5,
-                }}
+                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
-                <XAxis dataKey="date" stroke="#a1a1aa" />
-                <YAxis stroke="#a1a1aa" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: "hsl(var(--card))", 
-                    borderColor: "hsl(var(--border))",
-                    color: "hsl(var(--card-foreground))"
-                  }} 
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#666" 
+                  tick={{ fontSize: 10 }}
+                  tickLine={{ stroke: '#666' }}
                 />
-                <Legend />
-                <Bar dataKey="profit" name="Profit" fill="#33cc66" />
-                <Bar dataKey="loss" name="Loss" fill="#ff3366" />
+                <YAxis 
+                  stroke="#666" 
+                  tick={{ fontSize: 10 }} 
+                  tickLine={{ stroke: '#666' }}
+                />
+                <Tooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="profit" fill="#33cc66" name="Profit" />
+                <Bar dataKey="loss" fill="#ff3366" name="Loss" />
               </BarChart>
-            </ResponsiveContainer>
-          </TabsContent>
+            </ChartContainer>
+          </div>
           
-          <TabsContent value="line" className="h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">Cumulative P&L</h3>
+            <ChartContainer className="h-[300px]" config={chartConfig}>
               <LineChart
                 data={data}
-                margin={{
-                  top: 5,
-                  right: 30,
-                  left: 20,
-                  bottom: 5,
-                }}
+                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
-                <XAxis dataKey="date" stroke="#a1a1aa" />
-                <YAxis stroke="#a1a1aa" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: "hsl(var(--card))", 
-                    borderColor: "hsl(var(--border))",
-                    color: "hsl(var(--card-foreground))"
-                  }} 
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#666" 
+                  tick={{ fontSize: 10 }}
+                  tickLine={{ stroke: '#666' }}
                 />
-                <Legend />
+                <YAxis 
+                  stroke="#666" 
+                  tick={{ fontSize: 10 }} 
+                  tickLine={{ stroke: '#666' }}
+                />
+                <Tooltip content={<ChartTooltipContent />} />
                 <Line 
                   type="monotone" 
                   dataKey="cumulative" 
-                  name="Cumulative P/L" 
+                  name="Cumulative" 
                   stroke="#0ea5e9" 
-                  activeDot={{ r: 8 }} 
+                  dot={{ r: 3 }} 
+                  activeDot={{ r: 5 }} 
                 />
               </LineChart>
-            </ResponsiveContainer>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+            </ChartContainer>
+          </div>
+        </div>
+      </TabsContent>
+      
+      <TabsContent value="weekly">
+        <div className="flex items-center justify-center p-8 text-muted-foreground">
+          Weekly data view will be available when sufficient data is collected
+        </div>
+      </TabsContent>
+      
+      <TabsContent value="monthly">
+        <div className="flex items-center justify-center p-8 text-muted-foreground">
+          Monthly data view will be available when sufficient data is collected
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 };
 
