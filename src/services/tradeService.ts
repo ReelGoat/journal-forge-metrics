@@ -158,6 +158,11 @@ class TradeService {
     return this.trades.length < initialLength;
   }
 
+  // Clear all trades
+  clearAllTrades(): void {
+    this.trades = [];
+  }
+
   // Filter trades by criteria
   filterTrades(filters: Partial<{
     marketCategory: string;
