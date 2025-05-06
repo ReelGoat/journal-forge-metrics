@@ -101,10 +101,19 @@ const TradeForm: React.FC<TradeFormProps> = ({
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     const formData: TradeFormData = {
-      ...values,
+      date: values.date, // This is now explicitly included
+      marketCategory: values.marketCategory,
+      symbol: values.symbol,
+      direction: values.direction,
+      entryPrice: values.entryPrice,
+      exitPrice: values.exitPrice,
+      quantity: values.quantity,
+      status: values.status,
+      notes: values.notes || "",
       tags: values.tags
         ? values.tags.split(",").map((tag) => tag.trim())
         : undefined,
+      screenshot: values.screenshot,
     };
 
     onSubmit(formData);
