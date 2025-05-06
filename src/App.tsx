@@ -13,6 +13,7 @@ import TradeHistory from "./pages/TradeHistory";
 import TradeCalendar from "./pages/TradeCalendar";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import PerformanceAnalysis from "./pages/PerformanceAnalysis";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,14 @@ const App = () => (
             element={
               <AppLayout>
                 <TradeHistory />
+              </AppLayout>
+            } 
+          />
+          <Route 
+            path="/performance" 
+            element={
+              <AppLayout>
+                <PerformanceAnalysis />
               </AppLayout>
             } 
           />

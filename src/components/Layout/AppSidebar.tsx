@@ -6,7 +6,8 @@ import {
   TrendingUp, 
   CalendarCheck, 
   History, 
-  Settings 
+  Settings,
+  BarChart
 } from "lucide-react";
 
 import {
@@ -36,6 +37,11 @@ const AppSidebar: React.FC = () => {
       title: "New Trade",
       path: "/trade/new",
       icon: TrendingUp
+    },
+    {
+      title: "Performance",
+      path: "/performance",
+      icon: BarChart
     },
     {
       title: "Trade Calendar",
