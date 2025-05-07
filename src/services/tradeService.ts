@@ -122,7 +122,6 @@ class TradeService {
         profit_loss_percentage: profitLossPercentage,
         strategy: tradeData.marketCategory,
         notes: tradeData.notes,
-        tags: tradeData.tags,
         status: tradeData.status,
         screenshot_url: screenshotUrl
       })
@@ -210,7 +209,6 @@ class TradeService {
     }
     if (tradeData.marketCategory !== undefined) updatedData.strategy = tradeData.marketCategory;
     if (tradeData.notes !== undefined) updatedData.notes = tradeData.notes;
-    if (tradeData.tags !== undefined) updatedData.tags = tradeData.tags;
     
     // Update trade record
     const { data, error } = await supabase
