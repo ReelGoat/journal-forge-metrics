@@ -27,9 +27,17 @@ const mapDatabaseTradeToTrade = (dbTrade: DatabaseTrade): Trade => {
 class TradeService {
   // Get all trades for the current user
   async getAllTrades(): Promise<Trade[]> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user_id = sessionData.session?.user?.id;
+    
+    if (!user_id) {
+      throw new Error("User not authenticated");
+    }
+    
     const { data, error } = await supabase
       .from('trades')
       .select('*')
+      .eq('user_id', user_id)
       .order('entry_date', { ascending: false });
     
     if (error) {
@@ -42,10 +50,18 @@ class TradeService {
 
   // Get a trade by ID
   async getTradeById(id: string): Promise<Trade | null> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user_id = sessionData.session?.user?.id;
+    
+    if (!user_id) {
+      throw new Error("User not authenticated");
+    }
+    
     const { data, error } = await supabase
       .from('trades')
       .select('*')
       .eq('id', id)
+      .eq('user_id', user_id)
       .single();
     
     if (error) {
@@ -58,6 +74,13 @@ class TradeService {
 
   // Add a new trade
   async addTrade(tradeData: TradeFormData): Promise<Trade> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user_id = sessionData.session?.user?.id;
+    
+    if (!user_id) {
+      throw new Error("User not authenticated");
+    }
+    
     let screenshotUrl = null;
     
     // Upload screenshot if provided
@@ -111,6 +134,7 @@ class TradeService {
     const { data, error } = await supabase
       .from('trades')
       .insert({
+        user_id, // Add the user_id field here
         symbol: tradeData.symbol,
         direction: direction,
         entry_price: tradeData.entryPrice,
@@ -228,10 +252,18 @@ class TradeService {
 
   // Delete a trade
   async deleteTrade(id: string): Promise<boolean> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user_id = sessionData.session?.user?.id;
+    
+    if (!user_id) {
+      throw new Error("User not authenticated");
+    }
+    
     const { error } = await supabase
       .from('trades')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user_id);
     
     if (error) {
       console.error("Error deleting trade:", error);
@@ -243,10 +275,17 @@ class TradeService {
 
   // Clear all trades for current user
   async clearAllTrades(): Promise<void> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user_id = sessionData.session?.user?.id;
+    
+    if (!user_id) {
+      throw new Error("User not authenticated");
+    }
+    
     const { error } = await supabase
       .from('trades')
       .delete()
-      .neq('id', 'dummy'); // Delete all rows
+      .eq('user_id', user_id);
     
     if (error) {
       console.error("Error clearing trades:", error);
@@ -265,9 +304,17 @@ class TradeService {
     profitOnly: boolean;
     lossOnly: boolean;
   }>): Promise<Trade[]> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user_id = sessionData.session?.user?.id;
+    
+    if (!user_id) {
+      throw new Error("User not authenticated");
+    }
+    
     let query = supabase
       .from('trades')
-      .select('*');
+      .select('*')
+      .eq('user_id', user_id);
     
     if (filters.marketCategory) {
       query = query.eq('strategy', filters.marketCategory);
