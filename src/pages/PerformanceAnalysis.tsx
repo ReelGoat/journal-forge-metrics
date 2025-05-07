@@ -1,7 +1,8 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { RefreshCw } from "lucide-react";
 import { tradeService } from "@/services/tradeService";
+import { Trade } from "@/types/trade";
 import { calculateStats } from "@/utils/tradeCalculations";
 import PerformanceChart from "@/components/Dashboard/PerformanceChart";
 import { formatCurrency, formatPercentage } from "@/utils/tradeCalculations";
@@ -11,13 +12,36 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 const PerformanceAnalysis: React.FC = () => {
-  const [trades, setTrades] = useState(tradeService.getAllTrades());
-  const stats = calculateStats(trades);
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   
+  useEffect(() => {
+    fetchTrades();
+  }, []);
+  
+  const fetchTrades = async () => {
+    setLoading(true);
+    try {
+      const fetchedTrades = await tradeService.getAllTrades();
+      setTrades(fetchedTrades);
+    } catch (error) {
+      console.error("Error fetching trades:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch trading data.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const stats = calculateStats(trades);
+  
   // Function to refresh data
-  const refreshData = () => {
-    setTrades(tradeService.getAllTrades());
+  const refreshData = async () => {
+    await fetchTrades();
     toast({
       title: "Data refreshed",
       description: "Your trading data has been refreshed.",
@@ -25,7 +49,7 @@ const PerformanceAnalysis: React.FC = () => {
   };
   
   // Generate performance data for the charts
-  const performanceData = (() => {
+  const performanceData = React.useMemo(() => {
     const data = [];
     const closedTrades = trades.filter(trade => trade.status === 'closed');
     
@@ -51,12 +75,12 @@ const PerformanceAnalysis: React.FC = () => {
       const tradesOnDate = tradesByDate[date];
       
       const profit = tradesOnDate
-        .filter(trade => trade.pnl > 0)
-        .reduce((sum, trade) => sum + trade.pnl, 0);
+        .filter(trade => (trade.pnl || 0) > 0)
+        .reduce((sum, trade) => sum + (trade.pnl || 0), 0);
       
       const loss = tradesOnDate
-        .filter(trade => trade.pnl < 0)
-        .reduce((sum, trade) => sum + trade.pnl, 0);
+        .filter(trade => (trade.pnl || 0) < 0)
+        .reduce((sum, trade) => sum + (trade.pnl || 0), 0);
       
       cumulativePnL += profit + loss;
       
@@ -69,7 +93,7 @@ const PerformanceAnalysis: React.FC = () => {
     });
     
     return data;
-  })();
+  }, [trades]);
 
   // Generate symbol performance data
   const symbolPerformance = React.useMemo(() => {
@@ -81,8 +105,8 @@ const PerformanceAnalysis: React.FC = () => {
       }
       
       symbolData[trade.symbol].trades++;
-      if (trade.pnl > 0) symbolData[trade.symbol].wins++;
-      symbolData[trade.symbol].pnl += trade.pnl;
+      if ((trade.pnl || 0) > 0) symbolData[trade.symbol].wins++;
+      symbolData[trade.symbol].pnl += trade.pnl || 0;
     });
     
     return Object.entries(symbolData).map(([symbol, data]) => ({
@@ -92,6 +116,14 @@ const PerformanceAnalysis: React.FC = () => {
       pnl: data.pnl
     })).sort((a, b) => b.pnl - a.pnl);
   }, [trades]);
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p>Loading performance data...</p>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">

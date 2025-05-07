@@ -22,31 +22,57 @@ const TradeDetail: React.FC = () => {
   const { toast } = useToast();
   const [trade, setTrade] = useState<Trade | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    if (id) {
-      const foundTrade = tradeService.getTradeById(id);
-      if (foundTrade) {
-        setTrade(foundTrade);
-      } else {
-        navigate("/history", { replace: true });
+    const fetchTrade = async () => {
+      if (id) {
+        try {
+          const foundTrade = await tradeService.getTradeById(id);
+          if (foundTrade) {
+            setTrade(foundTrade);
+          } else {
+            navigate("/history", { replace: true });
+          }
+        } catch (error) {
+          console.error("Error fetching trade:", error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch trade details.",
+            variant: "destructive",
+          });
+          navigate("/history", { replace: true });
+        } finally {
+          setLoading(false);
+        }
       }
-    }
-  }, [id, navigate]);
+    };
+    
+    fetchTrade();
+  }, [id, navigate, toast]);
   
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (id) {
-      const success = tradeService.deleteTrade(id);
-      if (success) {
-        toast({
-          title: "Trade Deleted",
-          description: "The trade has been successfully deleted.",
-        });
-        navigate("/history", { replace: true });
-      } else {
+      try {
+        const success = await tradeService.deleteTrade(id);
+        if (success) {
+          toast({
+            title: "Trade Deleted",
+            description: "The trade has been successfully deleted.",
+          });
+          navigate("/history", { replace: true });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to delete the trade. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error deleting trade:", error);
         toast({
           title: "Error",
-          description: "Failed to delete the trade. Please try again.",
+          description: "An unexpected error occurred while deleting the trade.",
           variant: "destructive",
         });
       }
@@ -54,10 +80,18 @@ const TradeDetail: React.FC = () => {
     setIsDeleteDialogOpen(false);
   };
   
-  if (!trade) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <p>Loading trade details...</p>
+      </div>
+    );
+  }
+  
+  if (!trade) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p>Trade not found.</p>
       </div>
     );
   }

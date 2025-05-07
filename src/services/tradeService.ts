@@ -1,7 +1,27 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { Trade, TradeFormData } from "../types/trade";
+import { Trade, TradeFormData, DatabaseTrade } from "../types/trade";
 import { calculatePnL, calculatePnLPercentage } from "../utils/tradeCalculations";
+
+// Helper function to convert DatabaseTrade to Trade
+const mapDatabaseTradeToTrade = (dbTrade: DatabaseTrade): Trade => {
+  return {
+    id: dbTrade.id,
+    date: new Date(dbTrade.entry_date),
+    marketCategory: (dbTrade.strategy as any) || 'forex',
+    symbol: dbTrade.symbol,
+    direction: dbTrade.direction === 'long' ? 'buy' : 'sell',
+    entryPrice: dbTrade.entry_price,
+    exitPrice: dbTrade.exit_price,
+    quantity: dbTrade.position_size,
+    status: dbTrade.status as any,
+    pnl: dbTrade.profit_loss,
+    pnlPercentage: dbTrade.profit_loss_percentage,
+    notes: dbTrade.notes,
+    screenshot: dbTrade.screenshot_url,
+    user_id: dbTrade.user_id
+  };
+};
 
 // Service to handle trade operations
 class TradeService {
@@ -17,7 +37,7 @@ class TradeService {
       throw error;
     }
     
-    return data as Trade[];
+    return (data as DatabaseTrade[]).map(mapDatabaseTradeToTrade);
   }
 
   // Get a trade by ID
@@ -33,7 +53,7 @@ class TradeService {
       return null;
     }
     
-    return data as Trade;
+    return mapDatabaseTradeToTrade(data as DatabaseTrade);
   }
 
   // Add a new trade
@@ -96,8 +116,8 @@ class TradeService {
         entry_price: tradeData.entryPrice,
         exit_price: tradeData.exitPrice || null,
         position_size: tradeData.quantity,
-        entry_date: tradeData.date,
-        exit_date: tradeData.status === 'closed' ? new Date() : null,
+        entry_date: tradeData.date.toISOString(),
+        exit_date: tradeData.status === 'closed' ? new Date().toISOString() : null,
         profit_loss: profitLoss,
         profit_loss_percentage: profitLossPercentage,
         strategy: tradeData.marketCategory,
@@ -114,7 +134,7 @@ class TradeService {
       throw error;
     }
     
-    return data as Trade;
+    return mapDatabaseTradeToTrade(data as DatabaseTrade);
   }
 
   // Update an existing trade
@@ -158,18 +178,18 @@ class TradeService {
     if (tradeData.entryPrice !== undefined) updatedData.entry_price = tradeData.entryPrice;
     if (tradeData.exitPrice !== undefined) updatedData.exit_price = tradeData.exitPrice;
     if (tradeData.quantity !== undefined) updatedData.position_size = tradeData.quantity;
-    if (tradeData.date !== undefined) updatedData.entry_date = tradeData.date;
+    if (tradeData.date !== undefined) updatedData.entry_date = tradeData.date.toISOString();
     if (tradeData.status !== undefined) {
       updatedData.status = tradeData.status;
       
       // If closing a trade, set exit date and calculate P&L
       if (tradeData.status === 'closed' && currentTrade.status === 'open') {
-        updatedData.exit_date = new Date();
+        updatedData.exit_date = new Date().toISOString();
         
         const exitPrice = tradeData.exitPrice || currentTrade.exitPrice;
         if (exitPrice) {
           const direction = tradeData.direction || 
-            (currentTrade.direction === 'long' ? 'buy' : 'short');
+            (currentTrade.direction === 'buy' ? 'buy' : 'sell');
           const entryPrice = tradeData.entryPrice || currentTrade.entryPrice;
           const quantity = tradeData.quantity || currentTrade.quantity;
           
@@ -205,7 +225,7 @@ class TradeService {
       throw error;
     }
     
-    return data as Trade;
+    return mapDatabaseTradeToTrade(data as DatabaseTrade);
   }
 
   // Delete a trade
@@ -292,7 +312,7 @@ class TradeService {
       throw error;
     }
     
-    return data as Trade[];
+    return (data as DatabaseTrade[]).map(mapDatabaseTradeToTrade);
   }
 }
 

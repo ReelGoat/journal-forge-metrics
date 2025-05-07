@@ -10,9 +10,9 @@ const NewTrade: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const handleSubmit = (data: TradeFormData) => {
+  const handleSubmit = async (data: TradeFormData) => {
     try {
-      const newTrade = tradeService.addTrade(data);
+      const newTrade = await tradeService.addTrade(data);
       toast({
         title: "Trade Added",
         description: "Your trade has been successfully logged.",

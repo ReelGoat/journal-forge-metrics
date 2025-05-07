@@ -1,8 +1,9 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trade } from "@/types/trade";
+import { tradeService } from "@/services/tradeService";
 
 interface TradeCalendarProps {
   trades: Trade[];
@@ -26,7 +27,7 @@ const TradeCalendar: React.FC<TradeCalendarProps> = ({ trades }) => {
     
     if (tradesOnDate.length === 0) return "";
     
-    const totalPnL = tradesOnDate.reduce((sum, trade) => sum + trade.pnl, 0);
+    const totalPnL = tradesOnDate.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
     
     if (totalPnL > 0) {
       return "bg-trade-profit/30 text-white font-bold rounded-full";

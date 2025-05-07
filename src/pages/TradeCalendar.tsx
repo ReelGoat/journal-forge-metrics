@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { tradeService } from "@/services/tradeService";
 import { formatCurrency } from "@/utils/tradeCalculations";
 import { Calendar } from "@/components/ui/calendar";
@@ -15,7 +15,24 @@ import { Trade } from "@/types/trade";
 
 const TradeCalendarPage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const trades = tradeService.getAllTrades();
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const loadTrades = async () => {
+      try {
+        setLoading(true);
+        const fetchedTrades = await tradeService.getAllTrades();
+        setTrades(fetchedTrades);
+      } catch (error) {
+        console.error("Error loading trades:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadTrades();
+  }, []);
   
   const tradesByDate = trades.reduce<Record<string, Trade[]>>((acc, trade) => {
     const dateKey = trade.date.toISOString().split('T')[0];
@@ -34,7 +51,7 @@ const TradeCalendarPage: React.FC = () => {
     
     if (tradesOnDate.length === 0) return "";
     
-    const totalPnL = tradesOnDate.reduce((sum, trade) => sum + trade.pnl, 0);
+    const totalPnL = tradesOnDate.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
     
     if (totalPnL > 0) {
       return "bg-trade-profit/30 text-white font-bold rounded-full";
@@ -56,7 +73,15 @@ const TradeCalendarPage: React.FC = () => {
       })
     : [];
   
-  const dailyPnL = filteredTrades.reduce((sum, trade) => sum + trade.pnl, 0);
+  const dailyPnL = filteredTrades.reduce((sum, trade) => sum + (trade.pnl || 0), 0);
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p>Loading trade calendar...</p>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">

@@ -11,22 +11,39 @@ const EditTrade: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [trade, setTrade] = useState<Trade | null>(null);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    if (id) {
-      const foundTrade = tradeService.getTradeById(id);
-      if (foundTrade) {
-        setTrade(foundTrade);
-      } else {
-        navigate("/history", { replace: true });
+    const fetchTrade = async () => {
+      if (id) {
+        try {
+          const foundTrade = await tradeService.getTradeById(id);
+          if (foundTrade) {
+            setTrade(foundTrade);
+          } else {
+            navigate("/history", { replace: true });
+          }
+        } catch (error) {
+          console.error("Error fetching trade:", error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch trade details.",
+            variant: "destructive",
+          });
+          navigate("/history", { replace: true });
+        } finally {
+          setLoading(false);
+        }
       }
-    }
-  }, [id, navigate]);
+    };
+    
+    fetchTrade();
+  }, [id, navigate, toast]);
   
-  const handleSubmit = (data: TradeFormData) => {
+  const handleSubmit = async (data: TradeFormData) => {
     if (id) {
       try {
-        const updatedTrade = tradeService.updateTrade(id, data);
+        const updatedTrade = await tradeService.updateTrade(id, data);
         if (updatedTrade) {
           toast({
             title: "Trade Updated",
@@ -50,10 +67,18 @@ const EditTrade: React.FC = () => {
     }
   };
   
-  if (!trade) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <p>Loading trade details...</p>
+      </div>
+    );
+  }
+  
+  if (!trade) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p>Trade not found.</p>
       </div>
     );
   }
@@ -68,10 +93,10 @@ const EditTrade: React.FC = () => {
           symbol: trade.symbol,
           direction: trade.direction,
           entryPrice: trade.entryPrice,
-          exitPrice: trade.exitPrice,
+          exitPrice: trade.exitPrice || undefined,
           quantity: trade.quantity,
           status: trade.status,
-          notes: trade.notes,
+          notes: trade.notes || "",
           tags: trade.tags,
           screenshot: null,
         }}
