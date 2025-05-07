@@ -162,6 +162,13 @@ class TradeService {
 
   // Update an existing trade
   async updateTrade(id: string, tradeData: Partial<TradeFormData>): Promise<Trade | null> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user_id = sessionData.session?.user?.id;
+    
+    if (!user_id) {
+      throw new Error("User not authenticated");
+    }
+    
     // Get current trade
     const currentTrade = await this.getTradeById(id);
     if (!currentTrade) return null;
@@ -239,6 +246,7 @@ class TradeService {
       .from('trades')
       .update(updatedData)
       .eq('id', id)
+      .eq('user_id', user_id) // Ensure user can only update their own trades
       .select()
       .single();
     
