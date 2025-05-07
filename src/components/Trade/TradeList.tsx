@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableHeader,
@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 interface TradeListProps {
   trades: Trade[];
@@ -28,21 +29,52 @@ interface TradeListProps {
 
 const TradeList: React.FC<TradeListProps> = ({ trades }) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<MarketCategory | "all">("all");
   const [filterDirection, setFilterDirection] = useState<"buy" | "sell" | "all">("all");
+  const [filteredTrades, setFilteredTrades] = useState<Trade[]>(trades);
 
-  const filteredTrades = trades.filter((trade) => {
-    const matchesSearch =
-      trade.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trade.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trade.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Update filtered trades whenever filters or search query changes
+  useEffect(() => {
+    const filtered = trades.filter((trade) => {
+      const matchesSearch =
+        trade.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        trade.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        trade.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesCategory = filterCategory === "all" || trade.marketCategory === filterCategory;
-    const matchesDirection = filterDirection === "all" || trade.direction === filterDirection;
+      const matchesCategory = filterCategory === "all" || trade.marketCategory === filterCategory;
+      const matchesDirection = filterDirection === "all" || trade.direction === filterDirection;
 
-    return matchesSearch && matchesCategory && matchesDirection;
-  });
+      return matchesSearch && matchesCategory && matchesDirection;
+    });
+
+    setFilteredTrades(filtered);
+  }, [searchQuery, filterCategory, filterDirection, trades]);
+
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    
+    if (e.target.value.length > 0) {
+      toast({
+        title: "Searching trades",
+        description: `Showing results for "${e.target.value}"`,
+      });
+    }
+  };
+
+  // Reset all filters
+  const resetFilters = () => {
+    setSearchQuery("");
+    setFilterCategory("all");
+    setFilterDirection("all");
+    
+    toast({
+      title: "Filters reset",
+      description: "All search filters have been cleared",
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -54,7 +86,7 @@ const TradeList: React.FC<TradeListProps> = ({ trades }) => {
             placeholder="Search by symbol, notes, tags..."
             className="pl-8"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -141,6 +173,12 @@ const TradeList: React.FC<TradeListProps> = ({ trades }) => {
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          {(searchQuery || filterCategory !== "all" || filterDirection !== "all") && (
+            <Button variant="ghost" onClick={resetFilters} size="sm">
+              Reset
+            </Button>
+          )}
         </div>
       </div>
 
@@ -161,7 +199,9 @@ const TradeList: React.FC<TradeListProps> = ({ trades }) => {
             {filteredTrades.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-6">
-                  No trades found
+                  {searchQuery || filterCategory !== "all" || filterDirection !== "all" 
+                    ? "No matching trades found" 
+                    : "No trades found"}
                 </TableCell>
               </TableRow>
             ) : (
