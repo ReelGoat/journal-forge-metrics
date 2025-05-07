@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -46,13 +45,6 @@ const AppHeader: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </form>
-      </div>
-      
-      <div className="flex items-center space-x-4">
-        <Button onClick={() => navigate('/trade/new')} className="flex items-center gap-1 bg-sidebar-primary hover:bg-sidebar-primary/90 text-sidebar-primary-foreground">
-          <Plus className="w-4 h-4" />
-          <span>Log Trade</span>
-        </Button>
       </div>
     </header>
   );

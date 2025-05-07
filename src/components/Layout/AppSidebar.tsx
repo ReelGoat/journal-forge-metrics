@@ -7,8 +7,11 @@ import {
   CalendarCheck, 
   History, 
   Settings,
-  BarChart
+  BarChart,
+  LogOut,
+  Plus
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 import {
   Sidebar,
@@ -23,20 +26,19 @@ import {
   SidebarTrigger,
   SidebarFooter
 } from "@/components/ui/sidebar";
+import { Button } from "../ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const AppSidebar: React.FC = () => {
   const location = useLocation();
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
   
   const menuItems = [
     {
       title: "Dashboard",
       path: "/",
       icon: LayoutDashboard
-    },
-    {
-      title: "New Trade",
-      path: "/trade/new",
-      icon: TrendingUp
     },
     {
       title: "Performance",
@@ -62,6 +64,22 @@ const AppSidebar: React.FC = () => {
   
   const isActive = (path: string) => {
     return location.pathname === path;
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({
+        title: "Signed out",
+        description: "You have been signed out successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
   return (
@@ -94,9 +112,34 @@ const AppSidebar: React.FC = () => {
         </SidebarGroup>
       </SidebarContent>
       
-      <SidebarFooter className="p-4">
-        <div className="text-xs text-sidebar-foreground/60">
-          © {new Date().getFullYear()} Trade Journal App
+      <SidebarFooter className="p-4 space-y-4">
+        <Link to="/trade/new" className="w-full">
+          <Button className="w-full flex items-center gap-2 bg-sidebar-primary hover:bg-sidebar-primary/90 text-sidebar-primary-foreground">
+            <Plus className="w-4 h-4" />
+            <span>Log Trade</span>
+          </Button>
+        </Link>
+        
+        <div className="flex flex-col space-y-4">
+          {user && (
+            <div className="text-xs text-sidebar-foreground/80">
+              Logged in as: {user.email}
+            </div>
+          )}
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full flex items-center gap-2"
+            onClick={handleSignOut}
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </Button>
+          
+          <div className="text-xs text-sidebar-foreground/60">
+            © {new Date().getFullYear()} Trade Journal App
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>

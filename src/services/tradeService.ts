@@ -1,190 +1,298 @@
 
-import { Trade, TradeFormData, TradeStatus } from "../types/trade";
+import { supabase } from "@/integrations/supabase/client";
+import { Trade, TradeFormData } from "../types/trade";
 import { calculatePnL, calculatePnLPercentage } from "../utils/tradeCalculations";
-
-// Mock data for initial trades
-const mockTrades: Trade[] = [
-  {
-    id: "1",
-    date: new Date(2023, 4, 10, 9, 30),
-    marketCategory: "forex",
-    symbol: "EUR/USD",
-    direction: "buy",
-    entryPrice: 1.0750,
-    exitPrice: 1.0820,
-    quantity: 1,
-    status: "closed",
-    pnl: 0.007 * 100000,
-    pnlPercentage: 0.65,
-    notes: "Strong bullish momentum after NFP data, caught the uptrend.",
-    tags: ["NFP", "trend-following"]
-  },
-  {
-    id: "2",
-    date: new Date(2023, 4, 11, 14, 15),
-    marketCategory: "forex",
-    symbol: "GBP/USD",
-    direction: "sell",
-    entryPrice: 1.2650,
-    exitPrice: 1.2580,
-    quantity: 1,
-    status: "closed",
-    pnl: 0.007 * 100000,
-    pnlPercentage: 0.55,
-    notes: "Technical breakdown at resistance, good risk-reward setup.",
-    tags: ["technical", "resistance"]
-  },
-  {
-    id: "3",
-    date: new Date(2023, 4, 12, 10, 45),
-    marketCategory: "forex",
-    symbol: "USD/JPY",
-    direction: "buy",
-    entryPrice: 134.50,
-    exitPrice: 133.75,
-    quantity: 1,
-    status: "closed",
-    pnl: -0.0075 * 100000,
-    pnlPercentage: -0.56,
-    notes: "Unexpected BOJ announcement caused a quick reversal.",
-    tags: ["news", "central-bank"]
-  },
-  {
-    id: "4",
-    date: new Date(2023, 4, 13, 16, 20),
-    marketCategory: "crypto",
-    symbol: "BTC/USD",
-    direction: "buy",
-    entryPrice: 27500,
-    exitPrice: 28200,
-    quantity: 0.1,
-    status: "closed",
-    pnl: 70,
-    pnlPercentage: 2.55,
-    notes: "Bitcoin breaking out of consolidation pattern.",
-    tags: ["breakout", "technical"]
-  },
-  {
-    id: "5",
-    date: new Date(2023, 4, 15, 11, 0),
-    marketCategory: "stocks",
-    symbol: "AAPL",
-    direction: "sell",
-    entryPrice: 175.50,
-    exitPrice: 172.25,
-    quantity: 10,
-    status: "closed",
-    pnl: 32.5,
-    pnlPercentage: 1.85,
-    notes: "Earnings miss caused a selloff, shorted at the open.",
-    tags: ["earnings", "gap-down"]
-  }
-];
 
 // Service to handle trade operations
 class TradeService {
-  private trades: Trade[] = [...mockTrades];
-
-  // Get all trades
-  getAllTrades(): Trade[] {
-    return [...this.trades].sort((a, b) => b.date.getTime() - a.date.getTime());
+  // Get all trades for the current user
+  async getAllTrades(): Promise<Trade[]> {
+    const { data, error } = await supabase
+      .from('trades')
+      .select('*')
+      .order('entry_date', { ascending: false });
+    
+    if (error) {
+      console.error("Error fetching trades:", error);
+      throw error;
+    }
+    
+    return data as Trade[];
   }
 
   // Get a trade by ID
-  getTradeById(id: string): Trade | undefined {
-    return this.trades.find(trade => trade.id === id);
+  async getTradeById(id: string): Promise<Trade | null> {
+    const { data, error } = await supabase
+      .from('trades')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error("Error fetching trade:", error);
+      return null;
+    }
+    
+    return data as Trade;
   }
 
   // Add a new trade
-  addTrade(tradeData: TradeFormData): Trade {
-    const newId = String(this.trades.length + 1);
+  async addTrade(tradeData: TradeFormData): Promise<Trade> {
+    let screenshotUrl = null;
     
-    let pnl = 0;
-    let pnlPercentage = 0;
+    // Upload screenshot if provided
+    if (tradeData.screenshot) {
+      const fileExt = tradeData.screenshot.name.split('.').pop();
+      const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError, data } = await supabase
+        .storage
+        .from('trade-screenshots')
+        .upload(filePath, tradeData.screenshot);
+
+      if (uploadError) {
+        console.error("Error uploading screenshot:", uploadError);
+        throw uploadError;
+      }
+      
+      // Get the public URL for the uploaded file
+      const { data: urlData } = supabase
+        .storage
+        .from('trade-screenshots')
+        .getPublicUrl(filePath);
+        
+      screenshotUrl = urlData.publicUrl;
+    }
+    
+    // Calculate profit/loss if trade is closed
+    let profitLoss = null;
+    let profitLossPercentage = null;
     
     if (tradeData.status === 'closed' && tradeData.exitPrice) {
-      pnl = calculatePnL(
-        tradeData.entryPrice, 
-        tradeData.exitPrice, 
-        tradeData.quantity, 
+      profitLoss = calculatePnL(
+        tradeData.entryPrice,
+        tradeData.exitPrice,
+        tradeData.quantity,
         tradeData.direction
       );
       
-      pnlPercentage = calculatePnLPercentage(
-        tradeData.entryPrice, 
-        tradeData.exitPrice, 
+      profitLossPercentage = calculatePnLPercentage(
+        tradeData.entryPrice,
+        tradeData.exitPrice,
         tradeData.direction
       );
     }
     
-    const newTrade: Trade = {
-      id: newId,
-      ...tradeData,
-      exitPrice: tradeData.exitPrice || 0,
-      pnl,
-      pnlPercentage,
-      screenshot: tradeData.screenshot ? URL.createObjectURL(tradeData.screenshot) : undefined
-    };
+    // Direction mapping
+    const direction = tradeData.direction === 'buy' ? 'long' : 'short';
     
-    this.trades.push(newTrade);
-    return newTrade;
+    // Insert new trade
+    const { data, error } = await supabase
+      .from('trades')
+      .insert({
+        symbol: tradeData.symbol,
+        direction: direction,
+        entry_price: tradeData.entryPrice,
+        exit_price: tradeData.exitPrice || null,
+        position_size: tradeData.quantity,
+        entry_date: tradeData.date,
+        exit_date: tradeData.status === 'closed' ? new Date() : null,
+        profit_loss: profitLoss,
+        profit_loss_percentage: profitLossPercentage,
+        strategy: tradeData.marketCategory,
+        notes: tradeData.notes,
+        tags: tradeData.tags,
+        status: tradeData.status,
+        screenshot_url: screenshotUrl
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error("Error adding trade:", error);
+      throw error;
+    }
+    
+    return data as Trade;
   }
 
   // Update an existing trade
-  updateTrade(id: string, tradeData: Partial<TradeFormData>): Trade | undefined {
-    const index = this.trades.findIndex(trade => trade.id === id);
-    if (index === -1) return undefined;
+  async updateTrade(id: string, tradeData: Partial<TradeFormData>): Promise<Trade | null> {
+    // Get current trade
+    const currentTrade = await this.getTradeById(id);
+    if (!currentTrade) return null;
     
-    const updatedTrade = { ...this.trades[index], ...tradeData };
+    let updatedData: any = {};
     
-    if (tradeData.entryPrice !== undefined || tradeData.exitPrice !== undefined || tradeData.direction !== undefined || tradeData.quantity !== undefined) {
-      const entryPrice = tradeData.entryPrice || this.trades[index].entryPrice;
-      const exitPrice = tradeData.exitPrice || this.trades[index].exitPrice;
-      const direction = tradeData.direction || this.trades[index].direction;
-      const quantity = tradeData.quantity || this.trades[index].quantity;
+    // Process screenshot if a new one is provided
+    if (tradeData.screenshot) {
+      const fileExt = tradeData.screenshot.name.split('.').pop();
+      const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError, data } = await supabase
+        .storage
+        .from('trade-screenshots')
+        .upload(filePath, tradeData.screenshot);
+
+      if (uploadError) {
+        console.error("Error uploading screenshot:", uploadError);
+        throw uploadError;
+      }
       
-      updatedTrade.pnl = calculatePnL(entryPrice, exitPrice, quantity, direction);
-      updatedTrade.pnlPercentage = calculatePnLPercentage(entryPrice, exitPrice, direction);
+      // Get the public URL for the uploaded file
+      const { data: urlData } = supabase
+        .storage
+        .from('trade-screenshots')
+        .getPublicUrl(filePath);
+        
+      updatedData.screenshot_url = urlData.publicUrl;
     }
     
-    this.trades[index] = updatedTrade as Trade;
-    return updatedTrade as Trade;
+    // Map fields from TradeFormData to database fields
+    if (tradeData.symbol !== undefined) updatedData.symbol = tradeData.symbol;
+    if (tradeData.direction !== undefined) {
+      updatedData.direction = tradeData.direction === 'buy' ? 'long' : 'short';
+    }
+    if (tradeData.entryPrice !== undefined) updatedData.entry_price = tradeData.entryPrice;
+    if (tradeData.exitPrice !== undefined) updatedData.exit_price = tradeData.exitPrice;
+    if (tradeData.quantity !== undefined) updatedData.position_size = tradeData.quantity;
+    if (tradeData.date !== undefined) updatedData.entry_date = tradeData.date;
+    if (tradeData.status !== undefined) {
+      updatedData.status = tradeData.status;
+      
+      // If closing a trade, set exit date and calculate P&L
+      if (tradeData.status === 'closed' && currentTrade.status === 'open') {
+        updatedData.exit_date = new Date();
+        
+        const exitPrice = tradeData.exitPrice || currentTrade.exitPrice;
+        if (exitPrice) {
+          const direction = tradeData.direction || 
+            (currentTrade.direction === 'long' ? 'buy' : 'short');
+          const entryPrice = tradeData.entryPrice || currentTrade.entryPrice;
+          const quantity = tradeData.quantity || currentTrade.quantity;
+          
+          updatedData.profit_loss = calculatePnL(
+            entryPrice,
+            exitPrice,
+            quantity,
+            direction
+          );
+          
+          updatedData.profit_loss_percentage = calculatePnLPercentage(
+            entryPrice,
+            exitPrice,
+            direction
+          );
+        }
+      }
+    }
+    if (tradeData.marketCategory !== undefined) updatedData.strategy = tradeData.marketCategory;
+    if (tradeData.notes !== undefined) updatedData.notes = tradeData.notes;
+    if (tradeData.tags !== undefined) updatedData.tags = tradeData.tags;
+    
+    // Update trade record
+    const { data, error } = await supabase
+      .from('trades')
+      .update(updatedData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error("Error updating trade:", error);
+      throw error;
+    }
+    
+    return data as Trade;
   }
 
   // Delete a trade
-  deleteTrade(id: string): boolean {
-    const initialLength = this.trades.length;
-    this.trades = this.trades.filter(trade => trade.id !== id);
-    return this.trades.length < initialLength;
+  async deleteTrade(id: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('trades')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error("Error deleting trade:", error);
+      return false;
+    }
+    
+    return true;
   }
 
-  // Clear all trades
-  clearAllTrades(): void {
-    this.trades = [];
+  // Clear all trades for current user
+  async clearAllTrades(): Promise<void> {
+    const { error } = await supabase
+      .from('trades')
+      .delete()
+      .neq('id', 'dummy'); // Delete all rows
+    
+    if (error) {
+      console.error("Error clearing trades:", error);
+      throw error;
+    }
   }
 
   // Filter trades by criteria
-  filterTrades(filters: Partial<{
+  async filterTrades(filters: Partial<{
     marketCategory: string;
     symbol: string;
     direction: string;
-    status: TradeStatus;
+    status: string;
     dateFrom: Date;
     dateTo: Date;
     profitOnly: boolean;
     lossOnly: boolean;
-  }>): Trade[] {
-    return this.trades.filter(trade => {
-      if (filters.marketCategory && trade.marketCategory !== filters.marketCategory) return false;
-      if (filters.symbol && !trade.symbol.toLowerCase().includes(filters.symbol.toLowerCase())) return false;
-      if (filters.direction && trade.direction !== filters.direction) return false;
-      if (filters.status && trade.status !== filters.status) return false;
-      if (filters.dateFrom && trade.date < filters.dateFrom) return false;
-      if (filters.dateTo && trade.date > filters.dateTo) return false;
-      if (filters.profitOnly && trade.pnl <= 0) return false;
-      if (filters.lossOnly && trade.pnl >= 0) return false;
-      return true;
-    }).sort((a, b) => b.date.getTime() - a.date.getTime());
+  }>): Promise<Trade[]> {
+    let query = supabase
+      .from('trades')
+      .select('*');
+    
+    if (filters.marketCategory) {
+      query = query.eq('strategy', filters.marketCategory);
+    }
+    
+    if (filters.symbol) {
+      query = query.ilike('symbol', `%${filters.symbol}%`);
+    }
+    
+    // Map UI direction to DB direction
+    if (filters.direction) {
+      const dbDirection = filters.direction === 'buy' ? 'long' : 'short';
+      query = query.eq('direction', dbDirection);
+    }
+    
+    if (filters.status) {
+      query = query.eq('status', filters.status);
+    }
+    
+    if (filters.dateFrom) {
+      query = query.gte('entry_date', filters.dateFrom.toISOString());
+    }
+    
+    if (filters.dateTo) {
+      query = query.lte('entry_date', filters.dateTo.toISOString());
+    }
+    
+    if (filters.profitOnly) {
+      query = query.gt('profit_loss', 0);
+    }
+    
+    if (filters.lossOnly) {
+      query = query.lt('profit_loss', 0);
+    }
+    
+    const { data, error } = await query.order('entry_date', { ascending: false });
+    
+    if (error) {
+      console.error("Error filtering trades:", error);
+      throw error;
+    }
+    
+    return data as Trade[];
   }
 }
 

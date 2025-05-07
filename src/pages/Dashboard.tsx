@@ -1,7 +1,8 @@
 
-import React, { useState } from "react";
-import { RefreshCw, Trash } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { RefreshCw } from "lucide-react";
 import { tradeService } from "@/services/tradeService";
+import { Trade } from "@/types/trade";
 import { calculateStats } from "@/utils/tradeCalculations";
 import StatCard from "@/components/Dashboard/StatCard";
 import { formatCurrency, formatPercentage } from "@/utils/tradeCalculations";
@@ -10,28 +11,44 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 
 const Dashboard: React.FC = () => {
-  const [trades, setTrades] = useState(tradeService.getAllTrades());
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
   const stats = calculateStats(trades);
   const { toast } = useToast();
   
-  // Function to refresh data
-  const refreshData = () => {
-    setTrades(tradeService.getAllTrades());
-    toast({
-      title: "Data refreshed",
-      description: "Your trading data has been refreshed.",
-    });
+  // Fetch trades on component mount
+  useEffect(() => {
+    fetchTrades();
+  }, []);
+  
+  // Function to fetch trades
+  const fetchTrades = async () => {
+    setLoading(true);
+    try {
+      const fetchedTrades = await tradeService.getAllTrades();
+      setTrades(fetchedTrades);
+    } catch (error) {
+      console.error("Error fetching trades:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch trade data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Function to clear all data
-  const clearData = () => {
-    if (confirm("Are you sure you want to clear all data? This action cannot be undone.")) {
-      tradeService.clearAllTrades();
-      setTrades([]);
+  // Function to refresh data
+  const refreshData = async () => {
+    try {
+      await fetchTrades();
       toast({
-        title: "Data cleared",
-        description: "All your trading data has been cleared.",
+        title: "Data refreshed",
+        description: "Your trading data has been refreshed.",
       });
+    } catch (error) {
+      console.error("Error refreshing data:", error);
     }
   };
   
@@ -40,13 +57,9 @@ const Dashboard: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Trading Dashboard</h1>
         <div className="flex gap-2">
-          <Button variant="destructive" size="sm" className="gap-2" onClick={clearData}>
-            <Trash className="h-4 w-4" />
-            Clear Data
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={refreshData}>
-            <RefreshCw className="h-4 w-4" />
-            Refresh
+          <Button variant="outline" size="sm" className="gap-2" onClick={refreshData} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Loading...' : 'Refresh'}
           </Button>
         </div>
       </div>
@@ -96,12 +109,21 @@ const Dashboard: React.FC = () => {
         />
       </div>
       
-      <div className="mt-8 text-center">
-        <p className="text-lg mb-4">View detailed performance metrics and charts</p>
-        <Button asChild>
-          <Link to="/performance">View Performance Analysis</Link>
-        </Button>
-      </div>
+      {trades.length === 0 && !loading ? (
+        <div className="mt-8 text-center p-8 border border-dashed rounded-lg">
+          <p className="text-lg mb-4">No trades found. Start logging your trades to see performance data.</p>
+          <Button asChild>
+            <Link to="/trade/new">Log Your First Trade</Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-8 text-center">
+          <p className="text-lg mb-4">View detailed performance metrics and charts</p>
+          <Button asChild>
+            <Link to="/performance">View Performance Analysis</Link>
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

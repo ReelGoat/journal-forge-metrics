@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { tradeService } from "@/services/tradeService";
+import { Trade } from "@/types/trade";
 import TradeList from "@/components/Trade/TradeList";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,15 +15,39 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash } from "lucide-react";
+import { Trash, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const TradeHistory: React.FC = () => {
-  const [trades, setTrades] = useState(tradeService.getAllTrades());
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Fetch trades on component mount
+  useEffect(() => {
+    fetchTrades();
+  }, []);
+  
+  const fetchTrades = async () => {
+    setLoading(true);
+    try {
+      const fetchedTrades = await tradeService.getAllTrades();
+      setTrades(fetchedTrades);
+    } catch (error) {
+      console.error("Error fetching trades:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch trade data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Parse search query from URL if present
   useEffect(() => {
@@ -42,24 +67,39 @@ const TradeHistory: React.FC = () => {
   }, [location.search, navigate]);
   
   // Function to clear all trades
-  const clearAllTrades = () => {
-    tradeService.clearAllTrades();
-    setTrades([]);
-    
-    toast({
-      title: "All trades cleared",
-      description: "Your trade history has been cleared successfully.",
-    });
+  const clearAllTrades = async () => {
+    try {
+      await tradeService.clearAllTrades();
+      setTrades([]);
+      
+      toast({
+        title: "All trades cleared",
+        description: "Your trade history has been cleared successfully.",
+      });
+    } catch (error) {
+      console.error("Error clearing trades:", error);
+      toast({
+        title: "Error",
+        description: "Failed to clear trades. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+    }
   };
   
   // Refresh trades data
-  const refreshTrades = () => {
-    setTrades(tradeService.getAllTrades());
-    
-    toast({
-      title: "Trades refreshed",
-      description: "Your trade history has been refreshed.",
-    });
+  const refreshTrades = async () => {
+    try {
+      await fetchTrades();
+      
+      toast({
+        title: "Trades refreshed",
+        description: "Your trade history has been refreshed.",
+      });
+    } catch (error) {
+      console.error("Error refreshing trades:", error);
+    }
   };
   
   // Listen for custom search events
@@ -84,9 +124,12 @@ const TradeHistory: React.FC = () => {
         <h1 className="text-3xl font-bold">Trade History</h1>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={refreshTrades}>Refresh</Button>
+          <Button variant="outline" onClick={refreshTrades} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Loading...' : 'Refresh'}
+          </Button>
           
-          <AlertDialog>
+          <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" className="gap-2">
                 <Trash className="h-4 w-4" />
