@@ -61,6 +61,7 @@ const formSchema = z.object({
   status: z.enum(["open", "closed"]),
   notes: z.string().optional(),
   tags: z.string().optional(),
+  pnl: z.coerce.number().optional(), // New field for direct P&L input
   screenshot: z.any().optional(),
 });
 
@@ -95,13 +96,14 @@ const TradeForm: React.FC<TradeFormProps> = ({
       status: initialData?.status || "open",
       notes: initialData?.notes || "",
       tags: initialData?.tags ? initialData.tags.join(", ") : "",
+      pnl: initialData?.pnl || undefined, // Initialize P&L if available
       screenshot: undefined,
     },
   });
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     const formData: TradeFormData = {
-      date: values.date, // This is now explicitly included
+      date: values.date,
       marketCategory: values.marketCategory,
       symbol: values.symbol,
       direction: values.direction,
@@ -110,6 +112,7 @@ const TradeForm: React.FC<TradeFormProps> = ({
       quantity: values.quantity,
       status: values.status,
       notes: values.notes || "",
+      pnl: values.pnl, // Include P&L in form data
       tags: values.tags
         ? values.tags.split(",").map((tag) => tag.trim())
         : undefined,
@@ -334,6 +337,31 @@ const TradeForm: React.FC<TradeFormProps> = ({
                         <SelectItem value="closed">Closed</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* P&L Input - NEW FIELD */}
+              <FormField
+                control={form.control}
+                name="pnl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Profit/Loss</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="any" 
+                        placeholder="Enter profit or loss amount" 
+                        {...field} 
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Directly enter your profit (+) or loss (-) amount
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

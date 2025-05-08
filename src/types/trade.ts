@@ -33,6 +33,7 @@ export interface TradeFormData {
   quantity: number;
   status: TradeStatus;
   notes: string;
+  pnl?: number; // Added direct P&L input field
   screenshot?: File | null;
   tags?: string[];
 }

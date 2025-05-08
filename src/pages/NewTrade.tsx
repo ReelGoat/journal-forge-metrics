@@ -12,7 +12,19 @@ const NewTrade: React.FC = () => {
   
   const handleSubmit = async (data: TradeFormData) => {
     try {
-      const newTrade = await tradeService.addTrade(data);
+      // If user directly inputs P&L, we need to make sure it's included in the trade data
+      const tradeData = {
+        ...data,
+        // Only calculate P&L if not provided directly by the user
+        pnl: data.pnl !== undefined ? data.pnl : 
+          (data.exitPrice && data.status === 'closed') ? 
+          (data.direction === 'buy' ? 
+            (data.exitPrice - data.entryPrice) * data.quantity : 
+            (data.entryPrice - data.exitPrice) * data.quantity) : 
+          null
+      };
+      
+      const newTrade = await tradeService.addTrade(tradeData);
       toast({
         title: "Trade Added",
         description: "Your trade has been successfully logged.",
