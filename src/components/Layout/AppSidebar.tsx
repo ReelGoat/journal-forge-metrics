@@ -28,11 +28,13 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const AppSidebar: React.FC = () => {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   const menuItems = [
     {
@@ -83,7 +85,7 @@ const AppSidebar: React.FC = () => {
   };
   
   return (
-    <Sidebar>
+    <Sidebar collapsible={isMobile ? "offcanvas" : "icon"}>
       <SidebarHeader className="p-4 flex items-center">
         <div className="flex items-center space-x-2">
           <TrendingUp className="w-6 h-6 text-sidebar-primary" />
@@ -99,7 +101,11 @@ const AppSidebar: React.FC = () => {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton asChild className={isActive(item.path) ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}>
+                  <SidebarMenuButton 
+                    asChild 
+                    tooltip={item.title}
+                    className={isActive(item.path) ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}
+                  >
                     <Link to={item.path} className="flex items-center">
                       <item.icon className="w-5 h-5 mr-3" />
                       <span>{item.title}</span>

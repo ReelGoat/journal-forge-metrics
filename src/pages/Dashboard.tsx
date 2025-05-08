@@ -9,6 +9,7 @@ import { formatCurrency, formatPercentage } from "@/utils/tradeCalculations";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import TradeCalendarWidget from "@/components/Dashboard/TradeCalendarWidget";
 
 const Dashboard: React.FC = () => {
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -109,21 +110,25 @@ const Dashboard: React.FC = () => {
         />
       </div>
       
-      {trades.length === 0 && !loading ? (
-        <div className="mt-8 text-center p-8 border border-dashed rounded-lg">
-          <p className="text-lg mb-4">No trades found. Start logging your trades to see performance data.</p>
-          <Button asChild>
-            <Link to="/trade/new">Log Your First Trade</Link>
-          </Button>
-        </div>
-      ) : (
-        <div className="mt-8 text-center">
-          <p className="text-lg mb-4">View detailed performance metrics and charts</p>
-          <Button asChild>
-            <Link to="/performance">View Performance Analysis</Link>
-          </Button>
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <TradeCalendarWidget trades={trades} />
+        
+        {trades.length === 0 && !loading ? (
+          <div className="col-span-1 md:col-span-2 text-center p-8 border border-dashed rounded-lg flex flex-col justify-center items-center">
+            <p className="text-lg mb-4">No trades found. Start logging your trades to see performance data.</p>
+            <Button asChild>
+              <Link to="/trade/new">Log Your First Trade</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="col-span-1 md:col-span-2 text-center p-8 border border-dashed rounded-lg flex flex-col justify-center items-center">
+            <p className="text-lg mb-4">View detailed performance metrics and charts</p>
+            <Button asChild>
+              <Link to="/performance">View Performance Analysis</Link>
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
