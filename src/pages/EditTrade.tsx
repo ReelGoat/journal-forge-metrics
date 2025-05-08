@@ -43,7 +43,19 @@ const EditTrade: React.FC = () => {
   const handleSubmit = async (data: TradeFormData) => {
     if (id) {
       try {
-        const updatedTrade = await tradeService.updateTrade(id, data);
+        // If user directly inputs P&L, we need to make sure it's included in the trade data
+        const tradeData = {
+          ...data,
+          // Only calculate P&L if not provided directly by the user
+          pnl: data.pnl !== undefined ? data.pnl : 
+            (data.exitPrice && data.status === 'closed') ? 
+            (data.direction === 'buy' ? 
+              (data.exitPrice - data.entryPrice) * data.quantity : 
+              (data.entryPrice - data.exitPrice) * data.quantity) : 
+            null
+        };
+        
+        const updatedTrade = await tradeService.updateTrade(id, tradeData);
         if (updatedTrade) {
           toast({
             title: "Trade Updated",
@@ -97,6 +109,7 @@ const EditTrade: React.FC = () => {
           quantity: trade.quantity,
           status: trade.status,
           notes: trade.notes || "",
+          pnl: trade.pnl || undefined, // Include P&L in initial data
           tags: trade.tags,
           screenshot: null,
         }}

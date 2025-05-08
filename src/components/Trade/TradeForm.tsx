@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,7 +34,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, Upload } from "lucide-react";
+import { CalendarIcon, Upload, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { TradeFormData, MarketCategory, TradeDirection, TradeStatus } from "@/types/trade";
@@ -134,6 +133,9 @@ const TradeForm: React.FC<TradeFormProps> = ({
     }
   };
 
+  // Get the current P&L value from the form
+  const pnlValue = form.watch("pnl");
+  
   return (
     <Card>
       <CardHeader>
@@ -342,7 +344,7 @@ const TradeForm: React.FC<TradeFormProps> = ({
                 )}
               />
 
-              {/* P&L Input - NEW FIELD */}
+              {/* P&L Input - WITH ICON */}
               <FormField
                 control={form.control}
                 name="pnl"
@@ -350,14 +352,30 @@ const TradeForm: React.FC<TradeFormProps> = ({
                   <FormItem>
                     <FormLabel>Profit/Loss</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        step="any" 
-                        placeholder="Enter profit or loss amount" 
-                        {...field} 
-                        value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
-                      />
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                          {(pnlValue === undefined || pnlValue === 0) ? null : 
+                            pnlValue > 0 ? (
+                              <Plus className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Minus className="h-4 w-4 text-red-500" />
+                            )
+                          }
+                        </div>
+                        <Input 
+                          type="number" 
+                          step="any" 
+                          placeholder="Enter profit or loss amount" 
+                          {...field} 
+                          value={field.value ?? ""}
+                          onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                          className={cn(
+                            "pl-10",
+                            (pnlValue === undefined || pnlValue === 0) ? "" : 
+                              pnlValue > 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"
+                          )}
+                        />
+                      </div>
                     </FormControl>
                     <FormDescription>
                       Directly enter your profit (+) or loss (-) amount
